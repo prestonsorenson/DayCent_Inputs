@@ -1,0 +1,32 @@
+var polygon = ee.Geometry.Polygon({
+  coords: [[[-110.00, 49.00], [-110.00, 55.00], [-101.00, 55.00], [-101.00, 49.00]
+  ]],
+  geodesic: false
+});
+
+
+
+var collection = ee.ImageCollection('MODIS/MOD09GA_006_EVI').filterBounds(polygon);
+
+var months = ee.List.sequence(1, 12);
+
+
+var monthlyAverages = ee.ImageCollection.fromImages(
+        months.map(function(m) {
+            var monthlyFiltered = collection.filter(ee.Filter.calendarRange(m, m, 'month'));
+            return monthlyFiltered.mean().set('month', m); // Calculate mean and set month property
+        })
+    );
+
+var monthlyAverages=monthlyAverages.toBands()
+
+// Export the image, specifying scale and region.
+Export.image.toDrive({
+image: monthlyAverages, //replace with your image name variable
+description: 'MODIS_Monthly_EVI',
+scale: 500,
+maxPixels: 1e12,
+region: polygon, //polygon name that you have drawn at step 1
+folder:'MODIS_Monthly_EVI',
+crs: "EPSG:4326"
+});
