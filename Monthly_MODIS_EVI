@@ -1,0 +1,48 @@
+var polygon = ee.Geometry.Polygon({
+  coords: [[[-110.00, 49.00], [-110.00, 55.00], [-101.00, 55.00], [-101.00, 49.00]
+  ]],
+  geodesic: false
+});
+
+
+
+var collection = ee.ImageCollection('MODIS/MOD09GA_006_EVI').filterBounds(polygon);
+var startDate = ee.Date('2000-02-24');
+var endDate = ee.Date('2022-12-31');
+
+var years = ee.List.sequence(startDate.get('year'), endDate.get('year'));
+
+var annualEVI = years.map(function(year) {
+  // Create a list of months (1 to 12)
+  var months = ee.List.sequence(1, 12);
+
+  // Process each month within the current year
+  var monthlyEVI = months.map(function(month) {
+    // Filter by year and month
+    var filtered = collection.filter(ee.Filter.calendarRange(year, year, 'year'))
+                           .filter(ee.Filter.calendarRange(month, month, 'month'));
+
+    // Calculate the mean EVI for the month
+    var meanEVI = filtered.mean()
+                          .set('year', year)
+                          .set('month', month)
+                          .set('system:time_start', ee.Date.fromYMD(year, month, 1));
+    return meanEVI;
+  });
+  return ee.ImageCollection.fromImages(monthlyEVI).toBands();
+}); // Flatten the collection of collections
+
+var annualEVI = ee.ImageCollection.fromImages(annualEVI).toBands();
+
+print(annualEVI)
+
+// Export the image, specifying scale and region.
+Export.image.toDrive({
+image: annualEVI, //replace with your image name variable
+description: 'MODIS_Monthly_EVI',
+scale: 500,
+maxPixels: 1e12,
+region: polygon, //polygon name that you have drawn at step 1
+folder:'MODIS_Monthly_EVI',
+crs: "EPSG:4326"
+});
